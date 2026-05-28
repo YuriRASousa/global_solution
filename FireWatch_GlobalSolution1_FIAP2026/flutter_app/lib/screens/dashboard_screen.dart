@@ -1,98 +1,128 @@
 import 'package:flutter/material.dart';
-import '../services/firewatch_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/fire_provider.dart';
 
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
-}
-
-class _DashboardScreenState extends State<DashboardScreen> {
-  final _service = FireWatchService();
-  DashboardStats? _stats;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _isLoading = true);
-    final stats = await _service.fetchDashboardStats();
-    if (mounted) setState(() { _stats = stats; _isLoading = false; });
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<FireProvider>(context);
+    final stats = provider.stats;
+
     return Scaffold(
       backgroundColor: const Color(0xFF0F1923),
       body: SafeArea(
-        child: _isLoading
+        child: provider.isLoading && stats == null
             ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6B35)))
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 16),
-                    _buildKpiRow(),
-                    const SizedBox(height: 12),
-                    _buildWeeklyChart(),
-                    const SizedBox(height: 12),
-                    _buildAirQuality(),
-                    const SizedBox(height: 12),
-                    _buildBiomeBreakdown(),
-                    const SizedBox(height: 12),
-                    _buildSatelliteInfo(),
-                  ],
+            : RefreshIndicator(
+                onRefresh: provider.fetchAllData,
+                color: const Color(0xFFFF6B35),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(provider),
+                      const SizedBox(height: 16),
+                      if (stats != null) ...[
+                        _buildKpiRow(stats),
+                        const SizedBox(height: 12),
+                        _buildWeeklyChart(stats),
+                        const SizedBox(height: 12),
+                        _buildAirQuality(provider),
+                        const SizedBox(height: 12),
+                        _buildBiomeBreakdown(stats),
+                        const SizedBox(height: 12),
+                        _buildSatelliteInfo(stats),
+                      ] else
+                        const Center(child: Text("Sem dados estatísticos", style: TextStyle(color: Colors.white))),
+                    ],
+                  ),
                 ),
               ),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        Text('Dashboard',
-            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
-        Text('Maio 2026 · Brasil',
-            style: TextStyle(color: Color(0xFF8899AA), fontSize: 12)),
+  Widget _buildHeader(FireProvider provider) {
+    final syncTime = provider.lastSync != null 
+        ? "${provider.lastSync!.hour.toString().padLeft(2, '0')}:${provider.lastSync!.minute.toString().padLeft(2, '0')}"
+        : "--:--";
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('Dashboard',
+                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF4444).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: const Color(0xFFFF4444), width: 0.5),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.circle, color: Color(0xFFFF4444), size: 6),
+                      SizedBox(width: 4),
+                      Text('LIVE', style: TextStyle(color: Color(0xFFFF4444), fontSize: 8, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Text('Monitoramento Estratégico · Brasil',
+                style: TextStyle(color: Color(0xFF8899AA), fontSize: 12)),
+          ],
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const Text('ÚLTIMA ATUALIZAÇÃO', 
+              style: TextStyle(color: Color(0xFFFF6B35), fontSize: 8, fontWeight: FontWeight.w800)),
+            Text(syncTime, 
+              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _buildKpiRow() {
+  Widget _buildKpiRow(dynamic stats) {
     return Row(
       children: [
-        _KpiCard(label: 'Focos hoje', value: '${_stats!.totalFociToday}', color: const Color(0xFFFF6B35)),
+        _KpiCard(label: 'Focos (Hoje)', value: '${stats.totalFociToday}', color: const Color(0xFFFF6B35)),
         const SizedBox(width: 8),
-        _KpiCard(label: 'Área afetada', value: '${_stats!.affectedAreaKm2}km²', color: const Color(0xFFFFAA00)),
+        _KpiCard(label: 'Área Estimada', value: '${stats.affectedAreaKm2.toStringAsFixed(1)}km²', color: const Color(0xFFFFAA00)),
         const SizedBox(width: 8),
-        _KpiCard(label: 'Alertas', value: '${_stats!.activeAlerts}', color: const Color(0xFFFF4444)),
+        _KpiCard(label: 'Riscos Críticos', value: '${stats.activeAlerts}', color: const Color(0xFFFF4444)),
       ],
     );
   }
 
-  Widget _buildWeeklyChart() {
+  Widget _buildWeeklyChart(dynamic stats) {
     final days = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
-    final maxVal = _stats!.weeklyFoci.reduce((a, b) => a > b ? a : b).toDouble();
+    final List<int> weeklyFoci = stats.weeklyFoci;
+    final maxVal = weeklyFoci.reduce((a, b) => a > b ? a : b).toDouble();
 
     return _Card(
       title: 'Focos por dia (semana)',
-      child: SizedBox(
-        height: 100,
+      child: Container(
+        height: 110,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
-          children: List.generate(_stats!.weeklyFoci.length, (i) {
-            final val = _stats!.weeklyFoci[i];
-            final height = (val / maxVal) * 80;
-            final isToday = i == _stats!.weeklyFoci.length - 1;
+          children: List.generate(weeklyFoci.length, (i) {
+            final val = weeklyFoci[i];
+            final double heightPercent = maxVal > 0 ? (val / maxVal) : 0.0;
+            final isToday = i == weeklyFoci.length - 1;
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -104,15 +134,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             fontSize: 8,
                             color: isToday ? const Color(0xFFFF6B35) : const Color(0xFF8899AA))),
                     const SizedBox(height: 2),
-                    Container(
-                      height: height,
-                      decoration: BoxDecoration(
-                        color: isToday ? const Color(0xFFFF6B35) : const Color(0xFF334455),
-                        borderRadius: BorderRadius.circular(3),
+                    Flexible(
+                      child: Container(
+                        constraints: BoxConstraints(minHeight: 2, maxHeight: 80),
+                        height: 80 * heightPercent,
+                        decoration: BoxDecoration(
+                          color: isToday ? const Color(0xFFFF6B35) : const Color(0xFF334455),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(days[i],
+                    Text(days[i % 7],
                         style: const TextStyle(fontSize: 9, color: Color(0xFF8899AA))),
                   ],
                 ),
@@ -124,9 +157,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildAirQuality() {
-    const iqar = 68;
-    const pct = iqar / 300;
+  Widget _buildAirQuality(FireProvider provider) {
+    final aqi = provider.airQuality;
+    final label = aqi?.aqiLabel ?? 'Moderado';
+    final value = aqi?.aqi ?? 2;
+    // Map value to approximate 0-300 scale for UI
+    final displayValue = value * 40 + 20; 
+
     return _Card(
       title: 'Qualidade do Ar (IQAr)',
       child: Column(
@@ -134,38 +171,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text('Moderado', style: TextStyle(color: Color(0xFFFFCC00), fontSize: 12, fontWeight: FontWeight.w600)),
-              Text('IQAr: 68', style: TextStyle(color: Color(0xFFFFCC00), fontSize: 12)),
+            children: [
+              Text(label, style: const TextStyle(color: Color(0xFFFFCC00), fontSize: 12, fontWeight: FontWeight.w600)),
+              Text('IQAr: $displayValue', style: const TextStyle(color: Color(0xFFFFCC00), fontSize: 12)),
             ],
           ),
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: pct,
+              value: displayValue / 300,
               minHeight: 10,
               backgroundColor: const Color(0xFF111E2D),
               valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFCC00)),
             ),
           ),
           const SizedBox(height: 6),
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _AqiLabel('Bom', const Color(0xFF44CC44)),
-              _AqiLabel('Moderado', const Color(0xFFFFCC00)),
-              _AqiLabel('Ruim', const Color(0xFFFF8800)),
-              _AqiLabel('Perigoso', const Color(0xFFFF3333)),
+              _AqiLabel('Bom', Color(0xFF44CC44)),
+              _AqiLabel('Moderado', Color(0xFFFFCC00)),
+              _AqiLabel('Ruim', Color(0xFFFF8800)),
+              _AqiLabel('Perigoso', Color(0xFFFF3333)),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _AqiMetric('PM2.5', '18.4 μg/m³'),
-              _AqiMetric('PM10', '32.1 μg/m³'),
-              _AqiMetric('CO', '0.8 mg/m³'),
+              _AqiMetric('PM2.5', '${aqi?.pm25 ?? 18.4} μg/m³'),
+              _AqiMetric('PM10', '${aqi?.pm10 ?? 32.1} μg/m³'),
+              _AqiMetric('CO', '${aqi?.co ?? 0.8} mg/m³'),
             ],
           ),
         ],
@@ -173,11 +210,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildBiomeBreakdown() {
+  Widget _buildBiomeBreakdown(dynamic stats) {
+    final Map<String, int> breakdown = stats.biomeBreakdown;
     return _Card(
       title: 'Focos por bioma',
       child: Column(
-        children: _stats!.biomeBreakdown.entries.map((e) {
+        children: breakdown.entries.map((e) {
           final pct = e.value / 100;
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -211,15 +249,94 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildSatelliteInfo() {
-    return _Card(
-      title: 'Satélites Ativos',
-      child: Column(
+  Widget _buildSatelliteInfo(dynamic stats) {
+    final List<String> satellites = stats.activeSatellites;
+    final Map<String, int> counts = stats.breakdownBySatellite;
+    final lastScan = stats.lastDataPoint;
+    final scanLabel = lastScan != null 
+        ? "Última captura: ${lastScan.hour.toString().padLeft(2, '0')}:${lastScan.minute.toString().padLeft(2, '0')} UTC"
+        : "Aguardando varredura...";
+    
+    return Column(
+      children: [
+        _Card(
+          title: 'Centro de Comando Orbital',
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.satellite_alt, color: Color(0xFFFF6B35), size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(stats.currentSatLocation.toUpperCase(), 
+                          style: const TextStyle(color: Color(0xFF44CC66), fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                        const Text('Posição Estimada em Tempo Real', 
+                          style: TextStyle(color: Color(0xFF8899AA), fontSize: 10)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFF334455)),
+                ),
+                child: Column(
+                  children: [
+                    _TelemetryLine('CON: NASA-GSFC LINK', 'ESTABLISHED'),
+                    _TelemetryLine('DOWNLINK STATUS', 'SYNCHRONIZED'),
+                    _TelemetryLine('NEXT SCAN WINDOW', stats.nextPassEstimation),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _Card(
+          title: 'Dados da Carga Útil (VIIRS/MODIS)',
+          child: Column(
+            children: [
+              Text(scanLabel, style: const TextStyle(color: Color(0xFF8899AA), fontSize: 11, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              if (satellites.isEmpty)
+                const Text("Analisando ruído térmico... Nenhuma anomalia crítica.", style: TextStyle(color: Color(0xFF8899AA), fontSize: 11))
+              else
+                ...satellites.map((sat) => _SatRow(
+                  sat, 
+                  '${counts[sat] ?? 0} focos térmicos validados', 
+                  'Ativo',
+                  const Color(0xFF44CC66)
+                )).toList(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TelemetryLine extends StatelessWidget {
+  final String label;
+  final String status;
+  const _TelemetryLine(this.label, this.status);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _SatRow('NOAA-20', 'VIIRS 375m', 'Ativo', const Color(0xFF44CC66)),
-          _SatRow('Terra', 'MODIS 1km', 'Ativo', const Color(0xFF44CC66)),
-          _SatRow('Aqua', 'MODIS 1km', 'Ativo', const Color(0xFF44CC66)),
-          _SatRow('Sentinel-2', 'MSI 10m', 'Passagem em 2h', const Color(0xFFFFAA00)),
+          Text('> $label', style: const TextStyle(color: Color(0xFF44CC66), fontSize: 9, fontFamily: 'monospace')),
+          Text(status, style: const TextStyle(color: Colors.white, fontSize: 9, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
         ],
       ),
     );

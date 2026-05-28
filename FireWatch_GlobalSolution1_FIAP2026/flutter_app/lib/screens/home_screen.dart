@@ -1,80 +1,65 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 import '../models/fire_focus.dart';
+import '../providers/fire_provider.dart';
 import '../services/firewatch_service.dart';
 import '../widgets/risk_badge.dart';
 import '../widgets/focus_card.dart';
 import 'focus_detail_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  final _service = FireWatchService();
-  List<FireFocus> _foci = [];
-  bool _isLoading = true;
-  String _selectedFilter = 'Todos';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    final foci = await _service.fetchActiveFoci();
-    if (mounted) {
-      setState(() {
-        _foci = foci;
-        _isLoading = false;
-      });
+  LatLng _calculateSatPosition(FireProvider provider) {
+    if (provider.stats != null) {
+      return LatLng(provider.stats!.satLat, provider.stats!.satLon);
     }
-  }
-
-  List<FireFocus> get _filteredFoci {
-    if (_selectedFilter == 'Todos') return _foci;
-    return _foci.where((f) => f.riskLevel.label == _selectedFilter).toList();
+    final pos = FireWatchService.getEstimatedSatPosition(DateTime.now());
+    return LatLng(pos['lat']!, pos['lon']!);
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<FireProvider>(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFF0F1923),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(),
-            _buildMapPlaceholder(),
-            _buildStatsRow(),
-            _buildFilterRow(),
-            Expanded(child: _buildFociList()),
+            _buildHeader(provider),
+            _buildMap(provider, context),
+            _buildStatsRow(provider),
+            _buildFilterRow(provider),
+            Expanded(child: _buildFociList(provider)),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _loadData,
+        onPressed: provider.fetchFoci,
         backgroundColor: const Color(0xFFFF6B35),
-        child: const Icon(Icons.refresh),
+        child: provider.isLoading 
+          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+          : const Icon(Icons.refresh),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    final criticalCount = _foci.where((f) => f.riskLevel == FireRisk.critical).length;
+  Widget _buildHeader(FireProvider provider) {
+    final criticalCount = provider.foci.where((f) => f.riskLevel == FireRisk.critical).length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
+          const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'FIREWATCH',
                 style: TextStyle(
                   color: Color(0xFFFF6B35),
@@ -83,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   letterSpacing: 2,
                 ),
               ),
-              const Text(
+              Text(
                 'Brasil · Monitoramento em tempo real',
                 style: TextStyle(color: Color(0xFF8899AA), fontSize: 11),
               ),
@@ -99,86 +84,117 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildMapPlaceholder() {
-    // Em produção: substituir por flutter_map com tiles OpenStreetMap
-    // e markers dinâmicos dos focos via LatLng
-    return Container(
-      height: 200,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF162016),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2A4A2A)),
-      ),
-      child: Stack(
-        children: [
-          // Grade simulando tiles de mapa
-          CustomPaint(
-            painter: _MapGridPainter(),
-            size: const Size(double.infinity, 200),
+  Widget _buildMap(FireProvider provider, BuildContext context) {
+    // Se o usuário estiver fora do Brasil (ex: Los Angeles no emulador), 
+    // centralizamos em Brasília para ver os dados reais do país.
+    final bool isUserInBrazil = provider.userPosition != null && 
+                                provider.userPosition!.latitude < 5.0 && 
+                                provider.userPosition!.latitude > -34.0 &&
+                                provider.userPosition!.longitude > -74.0 &&
+                                provider.userPosition!.longitude < -34.0;
+
+    final center = isUserInBrazil
+        ? LatLng(provider.userPosition!.latitude, provider.userPosition!.longitude)
+        : const LatLng(-15.7801, -47.9292); // Brasília
+
+    return Stack(
+      children: [
+        Container(
+          height: 250,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF2A4A2A)),
           ),
-          // Focos de calor
-          ..._foci.take(4).toList().asMap().entries.map((entry) {
-            final positions = [
-              const Offset(0.4, 0.3),
-              const Offset(0.65, 0.55),
-              const Offset(0.2, 0.65),
-              const Offset(0.82, 0.2),
-            ];
-            final pos = positions[entry.key % positions.length];
-            return Positioned(
-              left: pos.dx * 300,
-              top: pos.dy * 200,
-              child: _HeatSpot(risk: entry.value.riskLevel),
-            );
-          }),
-          // Overlay info
-          Positioned(
-            bottom: 8,
-            right: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(6),
+          child: FlutterMap(
+            options: MapOptions(
+              initialCenter: center,
+              initialZoom: 4,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                subdomains: const ['a', 'b', 'c'],
+                userAgentPackageName: 'com.fiap.firewatch',
+                tileBuilder: (context, tileWidget, tile) {
+                  return ColorFiltered(
+                    colorFilter: const ColorFilter.matrix([
+                      -0.2126, -0.7152, -0.0722, 0, 255,
+                      -0.2126, -0.7152, -0.0722, 0, 255,
+                      -0.2126, -0.7152, -0.0722, 0, 255,
+                      0, 0, 0, 1, 0,
+                    ]),
+                    child: tileWidget,
+                  );
+                },
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.local_fire_department,
-                      color: Color(0xFFFF6B35), size: 12),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${_foci.length} focos ativos',
-                    style: const TextStyle(
-                      color: Color(0xFFFF6B35), fontSize: 10),
+              if (provider.foci.isEmpty && !provider.isLoading)
+                CircleLayer(
+                  circles: [
+                    CircleMarker(
+                      point: center,
+                      radius: 500000,
+                      useRadiusInMeter: true,
+                      color: const Color(0xFFFF6B35).withOpacity(0.05),
+                      borderColor: const Color(0xFFFF6B35).withOpacity(0.2),
+                      borderStrokeWidth: 1,
+                    ),
+                  ],
+                ),
+              MarkerLayer(
+                markers: [
+                  if (provider.userPosition != null)
+                    Marker(
+                      point: LatLng(provider.userPosition!.latitude, provider.userPosition!.longitude),
+                      width: 30,
+                      height: 30,
+                      child: const Icon(Icons.person_pin_circle, color: Colors.blue, size: 30),
+                    ),
+                  
+                  // SATÉLITE EM ÓRBITA (SINCRONIZADO)
+                  Marker(
+                    point: _calculateSatPosition(provider),
+                    width: 60,
+                    height: 60,
+                    child: _OrbitalSatellite(),
                   ),
+
+                  ...provider.filteredFoci.map((f) => Marker(
+                    point: LatLng(f.latitude, f.longitude),
+                    width: 25,
+                    height: 25,
+                    child: GestureDetector(
+                      onTap: () {
+                         Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FocusDetailScreen(focus: f),
+                          ),
+                        );
+                      },
+                      child: _HeatSpot(risk: f.riskLevel),
+                    ),
+                  )),
                 ],
               ),
-            ),
+            ],
           ),
-          Positioned(
-            bottom: 8,
-            left: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                'Sat: VIIRS · MODIS',
-                style: TextStyle(color: Color(0xFF8899AA), fontSize: 9),
-              ),
-            ),
+        ),
+        Positioned(
+          top: 16,
+          left: 32,
+          child: _SyncStatus(
+            isLoading: provider.isLoading,
+            lastSync: provider.lastSync,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildStatsRow() {
-    final highRisk = _foci
+  Widget _buildStatsRow(FireProvider provider) {
+    final highRisk = provider.foci
         .where((f) =>
             f.riskLevel == FireRisk.high || f.riskLevel == FireRisk.critical)
         .length;
@@ -188,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _StatCard(
             label: 'Focos hoje',
-            value: '${_foci.length}',
+            value: '${provider.foci.length}',
             color: const Color(0xFFFF6B35),
           ),
           const SizedBox(width: 8),
@@ -198,17 +214,18 @@ class _HomeScreenState extends State<HomeScreen> {
             color: const Color(0xFFFF4444),
           ),
           const SizedBox(width: 8),
-          _StatCard(
+          const _StatCard(
             label: 'Satélites',
-            value: '3',
-            color: const Color(0xFF6699FF),
+            value: 'VIIRS/MODIS',
+            color: Color(0xFF6699FF),
+            isSmall: true,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterRow() {
+  Widget _buildFilterRow(FireProvider provider) {
     final filters = ['Todos', 'CRÍTICO', 'ALTO', 'MÉDIO', 'BAIXO'];
     return SizedBox(
       height: 44,
@@ -218,9 +235,9 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: filters.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
-          final isSelected = _selectedFilter == filters[i];
+          final isSelected = provider.selectedFilter == filters[i];
           return GestureDetector(
-            onTap: () => setState(() => _selectedFilter = filters[i]),
+            onTap: () => provider.setFilter(filters[i]),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
@@ -245,13 +262,27 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFociList() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFFFF6B35)),
+  Widget _buildFociList(FireProvider provider) {
+    if (provider.isLoading && provider.foci.isEmpty) {
+      return ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: 5,
+        itemBuilder: (_, __) => Shimmer.fromColors(
+          baseColor: const Color(0xFF1A2535),
+          highlightColor: const Color(0xFF2A3545),
+          child: Container(
+            height: 100,
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
       );
     }
-    if (_filteredFoci.isEmpty) {
+    
+    if (provider.filteredFoci.isEmpty) {
       return const Center(
         child: Text(
           'Nenhum foco encontrado',
@@ -259,12 +290,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
+    
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: _filteredFoci.length,
+      itemCount: provider.filteredFoci.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        final focus = _filteredFoci[index];
+        final focus = provider.filteredFoci[index];
         return FocusCard(
           focus: focus,
           onTap: () => Navigator.push(
@@ -287,11 +319,13 @@ class _StatCard extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+  final bool isSmall;
 
   const _StatCard({
     required this.label,
     required this.value,
     required this.color,
+    this.isSmall = false,
   });
 
   @override
@@ -313,7 +347,7 @@ class _StatCard extends StatelessWidget {
             Text(value,
                 style: TextStyle(
                     color: color,
-                    fontSize: 20,
+                    fontSize: isSmall ? 14 : 20,
                     fontWeight: FontWeight.w700)),
           ],
         ),
@@ -338,20 +372,20 @@ class _HeatSpot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 20,
-      height: 20,
+      width: 25,
+      height: 25,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withOpacity(0.6),
-        boxShadow: [BoxShadow(color: color.withOpacity(0.4), blurRadius: 8)],
+        color: color.withOpacity(0.3),
       ),
       child: Center(
         child: Container(
-          width: 8,
-          height: 8,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: color,
+            boxShadow: [BoxShadow(color: color, blurRadius: 10, spreadRadius: 2)],
           ),
         ),
       ),
@@ -359,21 +393,86 @@ class _HeatSpot extends StatelessWidget {
   }
 }
 
-class _MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF2A4A2A)
-      ..strokeWidth = 0.5;
+class _SyncStatus extends StatelessWidget {
+  final bool isLoading;
+  final DateTime? lastSync;
+  const _SyncStatus({required this.isLoading, this.lastSync});
 
-    for (var x = 0.0; x < size.width; x += size.width / 3) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (var y = 0.0; y < size.height; y += size.height / 3) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1923).withOpacity(0.8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF334455), width: 0.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isLoading)
+            const SizedBox(
+              width: 10,
+              height: 10,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF6B35)),
+            )
+          else
+            const Icon(Icons.satellite_alt, color: Color(0xFF44CC66), size: 12),
+          const SizedBox(width: 6),
+          Text(
+            isLoading ? "CONECTANDO NASA..." : "VIGILÂNCIA ATIVA",
+            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrbitalSatellite extends StatefulWidget {
+  @override
+  State<_OrbitalSatellite> createState() => _OrbitalSatelliteState();
+}
+
+class _OrbitalSatelliteState extends State<_OrbitalSatellite> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        ScaleTransition(
+          scale: Tween(begin: 1.0, end: 2.0).animate(_controller),
+          child: FadeTransition(
+            opacity: Tween(begin: 0.5, end: 0.0).animate(_controller),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF6699FF), width: 1),
+              ),
+            ),
+          ),
+        ),
+        const Icon(Icons.satellite_alt, color: Color(0xFF6699FF), size: 24),
+      ],
+    );
+  }
 }

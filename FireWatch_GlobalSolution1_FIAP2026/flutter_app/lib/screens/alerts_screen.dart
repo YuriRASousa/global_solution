@@ -1,39 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/fire_alert.dart';
-import '../services/firewatch_service.dart';
+import '../providers/fire_provider.dart';
 
-class AlertsScreen extends StatefulWidget {
+class AlertsScreen extends StatelessWidget {
   const AlertsScreen({super.key});
 
   @override
-  State<AlertsScreen> createState() => _AlertsScreenState();
-}
-
-class _AlertsScreenState extends State<AlertsScreen> {
-  final _service = FireWatchService();
-  List<FireAlert> _alerts = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAlerts();
-  }
-
-  Future<void> _loadAlerts() async {
-    setState(() => _isLoading = true);
-    final alerts = await _service.fetchAlerts();
-    if (mounted) {
-      setState(() {
-        _alerts = alerts;
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final activeAlerts = _alerts.where((a) => a.status == AlertStatus.active).length;
+    final provider = Provider.of<FireProvider>(context);
+    final alerts = provider.alerts;
+    final activeAlerts = alerts.where((a) => a.status == AlertStatus.active).length;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F1923),
@@ -65,26 +42,34 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.refresh, color: Color(0xFF8899AA)),
-                    onPressed: _loadAlerts,
+                    icon: provider.isLoading 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF6B35)))
+                      : const Icon(Icons.refresh, color: Color(0xFF8899AA)),
+                    onPressed: provider.fetchAllData,
                   ),
                 ],
               ),
             ),
-            if (_isLoading)
+            if (provider.isLoading && alerts.isEmpty)
               const Expanded(
                 child: Center(
                   child: CircularProgressIndicator(
                       color: Color(0xFFFF6B35)),
                 ),
               )
+            else if (alerts.isEmpty)
+              const Expanded(
+                child: Center(
+                  child: Text('Nenhum alerta no momento', style: TextStyle(color: Color(0xFF8899AA))),
+                ),
+              )
             else
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.all(16),
-                  itemCount: _alerts.length,
+                  itemCount: alerts.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) => _AlertTile(alert: _alerts[i]),
+                  itemBuilder: (_, i) => _AlertTile(alert: alerts[i]),
                 ),
               ),
           ],
@@ -193,14 +178,21 @@ class _AlertTile extends StatelessWidget {
                 _ActionButton(
                   label: 'Ver no mapa',
                   color: alert.severity.color,
-                  onTap: () {},
+                  onTap: () {
+                    context.read<FireProvider>().setTabIndex(0);
+                  },
                 ),
                 const SizedBox(width: 8),
                 _ActionButton(
                   label: 'Reportar',
                   color: const Color(0xFF1A2535),
                   textColor: const Color(0xFF8899AA),
-                  onTap: () {},
+                  onTap: () {
+                    context.read<FireProvider>().prepareReport(
+                      type: 'Queimada',
+                      description: 'Alerta confirmado: ${alert.title}. Local: ${alert.location}',
+                    );
+                  },
                 ),
               ],
             ),
