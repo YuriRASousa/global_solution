@@ -136,8 +136,8 @@ class HomeScreen extends StatelessWidget {
                       point: center,
                       radius: 500000,
                       useRadiusInMeter: true,
-                      color: const Color(0xFFFF6B35).withOpacity(0.05),
-                      borderColor: const Color(0xFFFF6B35).withOpacity(0.2),
+                      color: const Color(0xFFFF6B35).withValues(alpha: 0.05),
+                      borderColor: const Color(0xFFFF6B35).withValues(alpha: 0.2),
                       borderStrokeWidth: 1,
                     ),
                   ],
@@ -376,7 +376,7 @@ class _HeatSpot extends StatelessWidget {
       height: 25,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withOpacity(0.3),
+        color: color.withValues(alpha: 0.3),
       ),
       child: Center(
         child: Container(
@@ -403,7 +403,7 @@ class _SyncStatus extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1923).withOpacity(0.8),
+        color: const Color(0xFF0F1923).withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFF334455), width: 0.5),
       ),

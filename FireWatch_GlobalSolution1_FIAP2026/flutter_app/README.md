@@ -1,41 +1,38 @@
 # 🔥 FireWatch — Monitoramento de Queimadas com Tecnologia Espacial
 
 > Aplicativo móvel híbrido para monitoramento em tempo real de focos de queimadas, 
-> integrado a dados satelitais da NASA, INPE e ESA.
+> integrado a dados satelitais da NASA FIRMS e análise de telemetria orbital.
 
 ---
 
 ## 📱 Sobre o Projeto
 
-O **FireWatch** é uma solução tecnológica desenvolvida como parte da **Global Solution 1 — Space Connect (FIAP 2026)**, conectando a economia espacial ao monitoramento ambiental.
+O **FireWatch** é uma solução tecnológica desenvolvida para a **Global Solution 1 — Space Connect (FIAP 2026)**. O projeto foca na democratização do acesso a dados espaciais para o monitoramento ambiental e apoio à Defesa Civil.
 
-O app utiliza dados de satélites como **NOAA-20 (VIIRS)**, **Terra/Aqua (MODIS)** e **Sentinel-2** para detectar e monitorar focos de incêndio em tempo real no Brasil, fornecendo alertas inteligentes, análise de qualidade do ar e ferramentas de reporte cidadão para apoio à Defesa Civil.
+O diferencial da solução é a **Sincronização de Telemetria Orbital**: o aplicativo simula e exibe a posição em tempo real dos satélites (como o NOAA-20), sincronizando os dados estatísticos do Dashboard com os marcadores visuais no Mapa, garantindo que a informação de "Próxima Passagem" e "Localização Atual" seja consistente em toda a plataforma.
 
 ---
 
-## 🛰️ Funcionalidades
+## 🛰️ Funcionalidades Principais
 
 | Funcionalidade | Descrição |
 |---|---|
-| **Mapa de Focos** | Visualização em tempo real de focos ativos com intensidade e bioma |
-| **Central de Alertas** | Alertas categorizados por severidade (Crítico / Alto / Médio / Info) |
-| **Dashboard Analítico** | Gráficos de tendência, qualidade do ar (IQAr), breakdown por bioma |
-| **Detalhe do Foco** | Temperatura, área, coordenadas GPS, satélite de origem, tendência |
-| **Reporte Cidadão** | Envio de ocorrências com foto, localização e descrição |
-| **Integração Defesa Civil** | Botão de reporte direto para autoridades competentes |
+| **Mapa de Vigilância** | Visualização de focos ativos com marcadores de calor e rastreamento orbital do satélite. |
+| **Dashboard Estratégico** | KPIs em tempo real, gráficos de tendência semanal e métricas de biomas afetados. |
+| **Sincronização de Telemetria** | Posição satelital e dados de varredura unificados entre Mapa e Dashboard. |
+| **Central de Alertas** | Notificações categorizadas por severidade com integração para reporte imediato. |
+| **Qualidade do Ar (IQAr)** | Monitoramento de PM2.5, PM10 e CO baseado na localização do usuário. |
+| **Reporte Colaborativo** | Envio de ocorrências georreferenciadas com fotos e descrição para as brigadas. |
 
 ---
 
-## 🛠️ Tecnologias
+## 🛠️ Tecnologias e APIs
 
-- **Flutter 3.x** — Framework híbrido mobile/web
-- **Dart 3.x** — Linguagem de programação
-- **NASA FIRMS API** — Fire Information for Resource Management System
-- **INPE BDQueimadas** — Base de Dados de Queimadas do Brasil
-- **OpenWeatherMap Air Pollution API** — Qualidade do ar
-- **flutter_map** — Mapas interativos (OpenStreetMap tiles)
-- **fl_chart** — Gráficos e visualizações
-- **geolocator** — Geolocalização do dispositivo
+- **Flutter 3.x / Dart 3.x** — Interface reativa e multiplataforma.
+- **NASA FIRMS API** — Dados reais dos sensores VIIRS (SNPP/NOAA-20) e MODIS.
+- **OpenWeatherMap API** — Dados de poluição e qualidade do ar.
+- **Provider** — Gerenciamento de estado centralizado e sincronizado.
+- **Flutter Map (OSM)** — Renderização de mapas com filtros de matriz de cor (Dark Mode).
 
 ---
 
@@ -43,84 +40,57 @@ O app utiliza dados de satélites como **NOAA-20 (VIIRS)**, **Terra/Aqua (MODIS)
 
 ```
 lib/
-├── main.dart                    # Ponto de entrada + navegação principal
+├── main.dart                 # Configuração do App e Navegação Centralizada
 ├── models/
-│   ├── fire_focus.dart          # Modelo de foco de queimada
-│   └── fire_alert.dart          # Modelo de alerta
+│   ├── fire_focus.dart       # Modelagem de anomalias térmicas (NASA)
+│   └── fire_alert.dart       # Entidade de alertas e severidade
+├── providers/
+│   └── fire_provider.dart    # Estado global e lógica de sincronização
 ├── services/
-│   └── firewatch_service.dart   # Integração APIs (NASA FIRMS, INPE, OpenWeather)
+│   └── firewatch_service.dart # Integração com APIs e Cálculos Orbitais
 ├── screens/
-│   ├── home_screen.dart         # Tela principal com mapa
-│   ├── alerts_screen.dart       # Central de alertas
-│   ├── dashboard_screen.dart    # Dashboard analítico
-│   ├── report_screen.dart       # Formulário de reporte
-│   └── focus_detail_screen.dart # Detalhes de um foco
-└── widgets/
-    ├── focus_card.dart          # Card reutilizável de foco
-    └── risk_badge.dart          # Badge de nível de risco
+│   ├── home_screen.dart      # Mapa e Monitoramento Ativo
+│   ├── dashboard_screen.dart # Centro de Comando e Estatísticas
+│   ├── alerts_screen.dart    # Gestão de incidentes e notificações
+│   └── report_screen.dart    # Formulário de reporte georreferenciado
+└── widgets/                  # Componentes reutilizáveis (Cards, Badges, etc)
 ```
 
 ---
 
 ## 🚀 Como Executar
 
-### Pré-requisitos
+### 1. Pré-requisitos
+- Flutter SDK instalado.
+- Chave de API da [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/api/config/).
 
-- Flutter SDK 3.x instalado → [flutter.dev](https://flutter.dev/docs/get-started/install)
-- Android Studio ou VS Code com extensão Flutter
-- Dispositivo físico ou emulador Android/iOS
+### 2. Configuração de Variáveis de Ambiente
+O projeto utiliza `flutter_dotenv` para segurança. Crie um arquivo `.env` na raiz da pasta `flutter_app`:
 
-### Passos
-
-```bash
-# 1. Clone o repositório
-git clone https://github.com/SEU_USUARIO/firewatch.git
-cd firewatch
-
-# 2. Configure as plataformas (Android e Web)
-# Isso recria as pastas 'android' e 'web' necessárias para compilação
-flutter create --platforms=android,web .
-
-# 3. Instale as dependências
-flutter pub get
-
-# 4. Configure as API Keys
-# Edite lib/services/firewatch_service.dart e insira suas chaves:
-# NASA_API_KEY e OPENWEATHER_API_KEY
-
-# 5. Execute o app
-flutter run
-
-# Para rodar no navegador:
-flutter run -d chrome
-
-# Para gerar o arquivo de instalação (APK):
-flutter build apk --release
+```env
+NASA_FIRMS_API_KEY=sua_chave_aqui
+OPENWEATHER_API_KEY=sua_chave_aqui
 ```
 
-> ⚠️ **Sem API keys**: o app funciona normalmente com dados **mock** representativos.
+### 3. Instalação e Execução
+```bash
+# Instalar dependências
+flutter pub get
+
+# Executar o projeto
+flutter run
+```
 
 ---
 
-## 🌐 APIs e Fontes de Dados
+## 🌐 Sincronização de Dados (Lógica de Negócio)
 
-| API | Fonte | Gratuito | Documentação |
-|-----|-------|----------|---|
-| NASA FIRMS VIIRS | NASA | ✅ | [firms.modaps.eosdis.nasa.gov](https://firms.modaps.eosdis.nasa.gov/api/) |
-| BDQueimadas INPE | INPE | ✅ | [queimadas.dgi.inpe.br](https://queimadas.dgi.inpe.br) |
-| Air Pollution API | OpenWeatherMap | ✅ (free tier) | [openweathermap.org](https://openweathermap.org/api/air-pollution) |
-| International Charter | Space & Major Disasters | ✅ | [disasterscharter.org](https://disasterscharter.org) |
+Para evitar disparidade visual, o FireWatch utiliza uma "Fonte Única de Verdade" (*Single Source of Truth*):
+1. O `FireWatchService` calcula a posição do satélite baseada no timestamp da última sincronização.
+2. O `FireProvider` distribui essas coordenadas para o marcador no `HomeScreen` e para os cartões de telemetria no `DashboardScreen`.
+3. Isso garante que, se o Dashboard indica que o satélite está "Cruzando o Brasil Central", o ícone no mapa estará exatamente sobre essa região.
 
 ---
 
-## 👥 Equipe
-
-Desenvolvido para a Global Solution 1 — FIAP 2026  
-Curso: Análise e Desenvolvimento de Sistemas  
-Turma: 3SIOA
-
----
-
-## 📄 Licença
-
-Este projeto foi desenvolvido para fins acadêmicos (FIAP Global Solution 2026).
+## 👥 Equipe — FIAP 2026
+Desenvolvido para a Global Solution — Turma 3SIOA.

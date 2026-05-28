@@ -39,8 +39,7 @@ class FireWatchApp extends StatelessWidget {
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFFFF6B35),
           secondary: Color(0xFFFFAA00),
-          surface: Color(0xFF1A2535),
-          background: Color(0xFF0F1923),
+          surface: Color(0xFF0F1923),
         ),
         useMaterial3: true,
         fontFamily: 'Roboto',
@@ -75,7 +74,7 @@ class _MainNavigationState extends State<MainNavigation> {
         backgroundColor: const Color(0xFF0A1218),
         selectedIndex: provider.currentTabIndex,
         onDestinationSelected: (index) => provider.setTabIndex(index),
-        indicatorColor: const Color(0xFFFF6B35).withOpacity(0.2),
+        indicatorColor: const Color(0xFFFF6B35).withValues(alpha: 0.2),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.map_outlined),

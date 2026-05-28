@@ -65,7 +65,7 @@ class DashboardScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF4444).withOpacity(0.2),
+                    color: const Color(0xFFFF4444).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(color: const Color(0xFFFF4444), width: 0.5),
                   ),
@@ -115,7 +115,7 @@ class DashboardScreen extends StatelessWidget {
 
     return _Card(
       title: 'Focos por dia (semana)',
-      child: Container(
+      child: SizedBox(
         height: 110,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -136,7 +136,7 @@ class DashboardScreen extends StatelessWidget {
                     const SizedBox(height: 2),
                     Flexible(
                       child: Container(
-                        constraints: BoxConstraints(minHeight: 2, maxHeight: 80),
+                        constraints: const BoxConstraints(minHeight: 2, maxHeight: 80),
                         height: 80 * heightPercent,
                         decoration: BoxDecoration(
                           color: isToday ? const Color(0xFFFF6B35) : const Color(0xFF334455),
@@ -290,8 +290,8 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    _TelemetryLine('CON: NASA-GSFC LINK', 'ESTABLISHED'),
-                    _TelemetryLine('DOWNLINK STATUS', 'SYNCHRONIZED'),
+                    const _TelemetryLine('CON: NASA-GSFC LINK', 'ESTABLISHED'),
+                    const _TelemetryLine('DOWNLINK STATUS', 'SYNCHRONIZED'),
                     _TelemetryLine('NEXT SCAN WINDOW', stats.nextPassEstimation),
                   ],
                 ),
@@ -309,12 +309,12 @@ class DashboardScreen extends StatelessWidget {
               if (satellites.isEmpty)
                 const Text("Analisando ruído térmico... Nenhuma anomalia crítica.", style: TextStyle(color: Color(0xFF8899AA), fontSize: 11))
               else
-                ...satellites.map((sat) => _SatRow(
+                for (var sat in satellites) _SatRow(
                   sat, 
                   '${counts[sat] ?? 0} focos térmicos validados', 
                   'Ativo',
                   const Color(0xFF44CC66)
-                )).toList(),
+                ),
             ],
           ),
         ),
@@ -446,7 +446,7 @@ class _SatRow extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
+                color: statusColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(status, style: TextStyle(color: statusColor, fontSize: 9, fontWeight: FontWeight.w600)),

@@ -94,6 +94,9 @@ O FireWatch adota a arquitetura **MVC adaptada ao padrão Flutter**, com separa�
 │                   APRESENTAÇÃO                       │
 │   HomeScreen  AlertsScreen  Dashboard  ReportScreen  │
 ├─────────────────────────────────────────────────────┤
+│             ESTADO E LÓGICA (Providers)              │
+│         FireProvider (ChangeNotifier / Pull)         │
+├─────────────────────────────────────────────────────┤
 │                  COMPONENTES (Widgets)                │
 │        FocusCard   RiskBadge   TrendChart            │
 ├─────────────────────────────────────────────────────┤
@@ -116,6 +119,8 @@ lib/
 ├── models/
 │   ├── fire_focus.dart            # Entidade: foco de queimada + enum FireRisk
 │   └── fire_alert.dart            # Entidade: alerta + severidade + status
+├── providers/
+│   └── fire_provider.dart         # Gerenciamento de estado e sincronização global
 ├── services/
 │   └── firewatch_service.dart     # Integração NASA FIRMS, INPE, OpenWeather
 ├── screens/
@@ -157,10 +162,14 @@ O FireWatch classifica cada foco em um dos quatro níveis de risco com base na t
 
 | Temperatura | Nível de Risco |
 |-------------|----------------|
-| > 500 K | 🔴 Crítico |
-| 380–500 K | 🟠 Alto |
-| 280–380 K | 🟡 Médio |
-| < 280 K | 🟢 Baixo |
+| > 480 K | 🔴 Crítico |
+| 400–480 K | 🟠 Alto |
+| 340–400 K | 🟡 Médio |
+| < 340 K | 🟢 Baixo |
+
+### 3.5 Sincronização de Telemetria Orbital
+
+Um diferencial técnico implementado é a **sincronização determinística da telemetria**. Para garantir consistência visual, a posição do satélite exibida no mapa (`HomeScreen`) é calculada centralizadamente no `FireWatchService` com base no ciclo orbital de 60 minutos e injetada no `FireProvider`. Isso garante que a descrição regional no Dashboard e o marcador no mapa estejam sempre em conformidade, evitando drift de dados entre telas.
 
 ---
 
@@ -276,15 +285,13 @@ Formulário de reporte colaborativo. O usuário seleciona o tipo de ocorrência 
 | Flutter | 3.x | Framework principal — interface mobile/web híbrida |
 | Dart | 3.x | Linguagem de programação |
 | NASA FIRMS API | v1 | Dados VIIRS/MODIS de focos em tempo quase-real |
-| INPE BDQueimadas | v2 | Base de dados nacional de focos de queimada |
-| OpenWeatherMap Air Pollution | v2.5 | Índice de Qualidade do Ar (IQAr) por coordenada |
-| flutter_map | 6.x | Mapa interativo com tiles OpenStreetMap |
+| OpenWeatherMap | v2.5 | Índice de Qualidade do Ar (IQAr) por coordenada |
+| flutter_map | 7.x | Mapa interativo com tiles OpenStreetMap |
 | fl_chart | 0.67 | Gráficos de barras, linhas e indicadores |
 | geolocator | 11.x | Geolocalização GPS do dispositivo |
-| image_picker | 1.x | Captura de foto para reporte de ocorrência |
+| provider | 6.x | Gerenciamento de estado reativo |
+| flutter_dotenv | 5.x | Gestão segura de chaves de API |
 | http | 1.2 | Requisições HTTP/REST às APIs externas |
-| shared_preferences | 2.x | Cache local e persistência de configurações |
-| permission_handler | 11.x | Gerenciamento de permissões (localização, câmera) |
 
 ### Ferramentas de Desenvolvimento
 

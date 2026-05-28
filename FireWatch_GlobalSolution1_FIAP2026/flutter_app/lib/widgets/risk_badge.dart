@@ -20,9 +20,9 @@ class RiskBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: _color.withOpacity(0.15),
+          color: _color.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: _color.withOpacity(0.4)),
+          border: Border.all(color: _color.withValues(alpha: 0.4)),
         ),
         child: Text(
           label,

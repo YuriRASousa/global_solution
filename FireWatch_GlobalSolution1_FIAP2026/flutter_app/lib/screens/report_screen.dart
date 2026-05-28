@@ -245,7 +245,7 @@ class _ReportScreenState extends State<ReportScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A2D1A),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF44CC66).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFF44CC66).withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
