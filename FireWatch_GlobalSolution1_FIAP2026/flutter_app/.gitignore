@@ -1,0 +1,45 @@
+# Arquivos de compilação e dependências do Dart/Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Android específico
+/android/local.properties
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/key.properties
+*.keystore
+*.jks
+
+# iOS específico (se for usar no futuro)
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.[mh]
+Packages/
+Package.resolved
+.pvm/
+
+# Web específico
+/web/index.html.tmp
+
+# IDEs (IntelliJ, Android Studio, VS Code)
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.history
+
+# Logs e arquivos temporários
+*.log
+.DS_Store
+.buildlog/
+app.*.symbols
+app.*.map.json
